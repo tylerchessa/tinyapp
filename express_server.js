@@ -6,8 +6,8 @@ const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  "b2xVn2": { longURL: "http://www.lighthouselabs.ca" },
+  "9sm5xK":  { longURL: "http://www.google.com" }
 };
 
 const users = {
@@ -27,6 +27,10 @@ app.get("/", (req, res) => {
 app.get('/register', (req, res) => {
   const templateVars = { 
     user: users[req.cookies['userID']]
+  };
+  if (users[req.cookies['userID']]) {
+    res.redirect('/urls')
+    return;
   };
   res.render('register', templateVars);
 });
@@ -52,9 +56,14 @@ app.post('/register', (req, res) => {
 
 
 app.get("/urls", (req, res) => {
+  if (!users[req.cookies['userID']]) {
+    res.send('you are not logged in')
+    return;
+  }
   const templateVars = { 
     urls: urlDatabase,
-    user: users[req.cookies['userID']]
+    user: users[req.cookies['userID']],
+    userUrls: urlsForUser(req.cookies['userID'])
   };
   res.render('urls_index', templateVars);
 });
@@ -65,19 +74,34 @@ app.get("/urls/new", (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies['userID']]
   };
+  if (!users[req.cookies['userID']]) {
+    res.redirect('/login')
+    return;
+  };
   res.render("urls_new", templateVars);
 });
 
 app.get('/u/:id', (req, res) => {
-  console.log(req.params.id)
   longURL = urlDatabase[req.params.id]
-  console.log(longURL)
-  res.redirect(longURL)
+  if (!users[req.cookies['userID']]) {
+    res.send('you are not logged in')
+    return;
+  }
+  if (!longURL) {
+    res.send(`url is not in the database`)
+  }
+  res.redirect(longURL.longURL)
 })
 
 app.get('/urls/:id', (req, res) => {
+  if (!users[req.cookies['userID']]) {
+    res.send('you are not logged in')
+    return;
+  }
+  console.log(urlDatabase)
+  console.log(req.params.id)
   const templateVars = { 
-    id: req.params.id, longURL: urlDatabase[req.params.id],
+    id: req.params.id, longURL: urlDatabase[req.params.id].longURL,
       user: users[req.cookies['userID']]
     };
   res.render('urls_show', templateVars);
@@ -92,15 +116,26 @@ app.get("/hello", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
+  if (!users[req.cookies['userID']]) {
+    res.send('you need to be logged in to use this feature')
+    return;
+  };
   console.log(req.body); // Log the POST request body to the console
   const shortURL = generateRandomString(req.body.longURL)
-  urlDatabase[shortURL] = req.body.longURL
+  urlDatabase[shortURL] = { 
+    longURL: req.body.longURL,
+    id: req.cookies['userID']
+   }
   res.redirect(`/urls/${shortURL}`);
 });
 
 app.get('/login', (req, res) => {
   const templateVars = { 
     user: users[req.cookies['userID']]
+  };
+  if (users[req.cookies['userID']]) {
+    res.redirect('/urls')
+    return;
   };
   res.render('login', templateVars);
 });
@@ -126,12 +161,34 @@ app.post('/logout', (req, res) => {
 })
 
 app.post('/urls/:id', (req, res) => {
-  console.log(req.body)
-  urlDatabase[req.params.id] = req.body.longURL
+  if (!users[req.cookies['userID']]) {
+    res.status(401).send('you need to be logged in to use this feature')
+    return;
+  };
+  if (urlDatabase[req.params.id].id !== req.cookies['userID']) {
+    res.status(401).send('You do not own this URL')
+  }
+  if (!urlDatabase[req.params.id]) {
+    res.status(400).send('id does not exist')
+  };
+  urlDatabase[req.params.id] = { 
+    longURL: req.body.longURL,
+    id: req.cookies['userID']
+  }
   res.redirect('/urls')
 })
 
 app.post("/urls/:id/delete", (req, res) => {
+  if (!users[req.cookies['userID']]) {
+    res.status(401).send('you need to be logged in to use this feature')
+    return;
+  };
+  if (urlDatabase[req.params.id].id !== req.cookies['userID']) {
+    res.status(401).send('You do not own this URL')
+  }
+  if (!urlDatabase[req.params.id]) {
+    res.status(400).send('id does not exist')
+  };
   delete urlDatabase[req.params.id]
   res.redirect('/urls')
 })
@@ -152,4 +209,15 @@ const userLookup = (email) => {
     }
   }
   return false;
+};
+
+const urlsForUser = (id) => {
+  const newObject = {};
+  const shortUrls = Object.keys(urlDatabase)
+  for (let shortUrl of shortUrls) {
+  if (urlDatabase[shortUrl].id === id) {
+    newObject[shortUrl] = urlDatabase[shortUrl].longURL
+  }
+}
+return newObject
 };

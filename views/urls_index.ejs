@@ -30,10 +30,10 @@
           </tr>
         </thead>
         <tbody>
-          <% for (let id in urls) { %>
+          <% for (let id in userUrls) { %>
             <tr>
               <td><%= id %></td>
-              <td><%= urls[id] %></td>
+              <td><%= userUrls[id] %></td>
               <td><a href='http://localhost:8080/urls/<%= id %>' class="btn text-primary border border-primary">Edit</a></td>
               <td>
                 <form method="POST" action="/urls/<%= id %>/delete">
