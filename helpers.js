@@ -1,7 +1,11 @@
+//helper funcitons
+
+
 const generateRandomString = () => {
   return Math.random().toString(36).slice(2, 8);
 };
 
+//search user by email
 const userLookup = (email, users) => {
   const keys = Object.keys(users) 
   for (let user of keys) {
@@ -12,6 +16,7 @@ const userLookup = (email, users) => {
   return undefined;
 };
 
+//search urls made by user
 const urlsForUser = (id, database) => {
   const newObject = {};
   const shortUrls = Object.keys(database)
